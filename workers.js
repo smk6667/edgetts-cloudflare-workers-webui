@@ -98,7 +98,7 @@ async function handleSpeechRequest(request) {
     const ttsArgs = [finalVoice, rate, finalPitch, style, outputFormat];
 
     if (stream) {
-        return streamVoice(textChunks, concurrency, ...ttsArgs);
+        return await streamVoice(textChunks, concurrency, ...ttsArgs);
     } else {
         return await getVoice(textChunks, concurrency, ...ttsArgs);
     }
@@ -119,11 +119,16 @@ function handleModelsRequest() {
 // Core TTS Logic (with Automatic Batch Processing)
 // =================================================================================
 
-function streamVoice(textChunks, concurrency, ...ttsArgs) {
+async function streamVoice(textChunks, concurrency, ...ttsArgs) {
     const { readable, writable } = new TransformStream();
-    // This function now internally handles batching and will not be awaited.
-    pipeChunksToStream(writable.getWriter(), textChunks, concurrency, ...ttsArgs);
-    return new Response(readable, { headers: { "Content-Type": "audio/mpeg", ...makeCORSHeaders() } });
+    try {
+        // Wait for the streaming pipeline to finish so we can catch errors.
+        await pipeChunksToStream(writable.getWriter(), textChunks, concurrency, ...ttsArgs);
+        return new Response(readable, { headers: { "Content-Type": "audio/mpeg", ...makeCORSHeaders() } });
+    } catch (error) {
+        console.error("Streaming TTS failed:", error);
+        return errorResponse(error.message, 500, "tts_generation_error");
+    }
 }
 
 async function pipeChunksToStream(writer, chunks, concurrency, ...ttsArgs) {
@@ -141,6 +146,7 @@ async function pipeChunksToStream(writer, chunks, concurrency, ...ttsArgs) {
     } catch (error) {
         console.error("Streaming TTS failed:", error);
         writer.abort(error);
+        throw error;
     } finally {
         writer.close();
     }
