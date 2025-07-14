@@ -1320,7 +1320,7 @@ function getHtmlContent() {
           };
         },
         async generateSpeech(isStream) {
-          const baseUrl = this.config.baseUrl.trim().replace(/\/+$/, ''); // 去除末尾的斜杠
+          const baseUrl = this.config.baseUrl.trim(); // 去除末尾的斜杠
           const apiKey = this.config.apiKey.trim();
           const text = this.form.inputText.trim();
 
