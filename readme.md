@@ -79,10 +79,11 @@
 
 ### 步骤四：使用 Web UI
 
-1.  将 `webui.html` 文件保存到您的本地电脑上。
-2.  用您的浏览器（如 Chrome, Safari）直接打开这个 HTML 文件。
-3.  在页面的“API 配置”部分，填入您的 Worker URL 和您刚才设置的 API Key。
-4.  现在，您可以尽情测试所有功能了！
+~~1.  将 `webui.html` 文件保存到您的本地电脑上。~~
+~~2.  用您的浏览器（如 Chrome, Safari）直接打开这个 HTML 文件。~~
+1.  用浏览器访问上方的`https://<您的Worker名称>.<您的子域>.workers.dev`，即可使用webui了（本仓库中的`webui.html`没有实际用途，仅用于归档，因为它的全部内容实际已经在`worker.js`里有一份了）。
+2.  在页面的“API 配置”部分，填入您的 Worker URL 和您刚才设置的 API Key。
+3.  现在，您可以尽情测试所有功能了！
 
 ---
 
