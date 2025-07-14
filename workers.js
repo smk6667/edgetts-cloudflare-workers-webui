@@ -122,7 +122,7 @@ async function handleSpeechRequest(request) {
   const {
     model = "tts-1",                    // 模型名称
     input,                              // 输入文本
-    voice = "zh-CN-XiaoxiaoNeural",     // 语音
+    voice = "shimmer",                  // 语音
     speed = 1.0,                        // 语速 (0.25-2.0)
     pitch = 1.0,                        // 音调 (0.5-1.5)
     style = "general",                  // 语音风格
