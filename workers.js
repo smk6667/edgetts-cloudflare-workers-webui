@@ -1062,7 +1062,7 @@ function getHtmlContent() {
       <div class="form-group">
         <label for="inputText">输入文本</label>
         <textarea id="inputText" v-model="form.inputText" @input="saveForm"
-          placeholder="请在这里输入文本，目前尽可能不要超过 1.5w 字每次 不然会报错。音色映射可以自行修改 workers 的配置"></textarea>
+          placeholder="请在这里输入文本，目前尽可能不要超过1点5万字每次，不然会报错。音色映射可以自行修改workers的配置"></textarea>
         <div class="textarea-footer">
           <span v-cloak>{{ charCount }} 字符</span>
           <button class="clear-btn" @click="clearText">清除</button>
@@ -1320,7 +1320,7 @@ function getHtmlContent() {
           };
         },
         async generateSpeech(isStream) {
-          const baseUrl = this.config.baseUrl.trim();
+          const baseUrl = this.config.baseUrl.trim().replace(/\/+$/, ''); // 去除末尾的斜杠
           const apiKey = this.config.apiKey.trim();
           const text = this.form.inputText.trim();
 
