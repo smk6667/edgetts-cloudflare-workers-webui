@@ -147,8 +147,11 @@ async function handleSpeechRequest(request) {
   const cleanedInput = cleanText(input, finalCleaningOptions);
 
   // 语音映射处理
-  const modelVoice = OPENAI_VOICE_MAP[model.replace('tts-1-', '')] || OPENAI_VOICE_MAP[voice];
-  const finalVoice = modelVoice || model;
+  const modelVoice = !voice ? OPENAI_VOICE_MAP[model.replace('tts-1-', '')] : null;
+  const finalVoice = modelVoice || voice;
+  if (!finalVoice) {
+    return errorResponse("无效的语音模型", 400, "invalid_request_error");
+  }
 
   // 参数转换为 Microsoft TTS 格式
   const rate = ((speed - 1) * 100).toFixed(0);        // 语速转换
@@ -891,6 +894,35 @@ function getHtmlContent() {
       border-radius: 8px;
     }
 
+    .download-section {
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .btn-download {
+      background: linear-gradient(135deg, var(--warning-color), #d97706);
+      color: white;
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-download:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-download:active {
+      transform: scale(0.97);
+    }
+
     details {
       border: 1px solid var(--border-color);
       border-radius: 8px;
@@ -1150,6 +1182,13 @@ function getHtmlContent() {
 
       <audio ref="audioPlayer" controls v-show="audioSrc" v-cloak :src="audioSrc" @loadstart="onAudioLoadStart"
         @canplay="onAudioCanPlay"></audio>
+
+      <!-- 下载按钮 -->
+      <div v-if="showDownloadBtn" class="download-section" v-cloak>
+        <button class="btn-download" @click="downloadAudio">
+          <span>📥</span> 下载音频文件
+        </button>
+      </div>
     </main>
   </div>
 
@@ -1166,6 +1205,8 @@ function getHtmlContent() {
           isLoading: false,
           isStreaming: false,
           audioSrc: '',
+          downloadUrl: '', // 添加下载链接
+          showDownloadBtn: false, // 控制下载按钮显示
           config: {
             baseUrl: 'https://你的域名',
             apiKey: '你的密钥'
@@ -1241,6 +1282,17 @@ function getHtmlContent() {
           this.form.inputText = '';
           this.saveForm();
         },
+        downloadAudio() {
+          if (this.downloadUrl) {
+            const link = document.createElement('a');
+            link.href = this.downloadUrl;
+            let timeString = (new Date().toLocaleString() + '-').replace(/[\/\:]/g, '-').replace(/\s/g, '_').replace(/[-_](\d)[-_]/g, '-0$1-').slice(0, -1);
+            link.download = 'tts-audio-' + timeString + '.mp3';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        },
         updateStatus(message, type = 'info') {
           this.status = {
             show: true,
@@ -1253,7 +1305,7 @@ function getHtmlContent() {
         },
         getRequestBody() {
           return {
-            model: this.form.voice,
+            voice: this.form.voice,
             input: this.form.inputText.trim(),
             speed: this.form.speed,
             pitch: this.form.pitch,
@@ -1283,6 +1335,11 @@ function getHtmlContent() {
           this.isLoading = true;
           this.isStreaming = isStream;
           this.audioSrc = '';
+          this.showDownloadBtn = false; // 重置下载按钮状态
+          if (this.downloadUrl) {
+            URL.revokeObjectURL(this.downloadUrl); // 清理之前的下载链接
+            this.downloadUrl = '';
+          }
           this.updateStatus('正在连接服务器...', 'info');
 
           try {
@@ -1319,6 +1376,8 @@ function getHtmlContent() {
 
           const blob = await response.blob();
           this.audioSrc = URL.createObjectURL(blob);
+          this.downloadUrl = this.audioSrc; // 非流式模式直接使用相同的URL
+          this.showDownloadBtn = true;
           this.updateStatus('播放中...', 'success');
 
           // 自动播放
@@ -1331,6 +1390,9 @@ function getHtmlContent() {
         async playStreamWithMSE(baseUrl, apiKey, body) {
           const mediaSource = new MediaSource();
           this.audioSrc = URL.createObjectURL(mediaSource);
+
+          // 用于收集音频数据的数组
+          const audioChunks = [];
 
           return new Promise((resolve, reject) => {
             mediaSource.addEventListener('sourceopen', async () => {
@@ -1373,10 +1435,19 @@ function getHtmlContent() {
                     if (mediaSource.readyState === 'open' && !sourceBuffer.updating) {
                       mediaSource.endOfStream();
                     }
-                    this.updateStatus('播放完毕！', 'success');
+
+                    // 创建完整的音频文件用于下载
+                    const completeAudioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+                    this.downloadUrl = URL.createObjectURL(completeAudioBlob);
+                    this.showDownloadBtn = true;
+
+                    this.updateStatus('播放完毕！可点击下载按钮保存音频', 'success');
                     resolve();
                     return;
                   }
+
+                  // 收集音频数据块
+                  audioChunks.push(value.slice()); // 使用slice()创建副本
 
                   if (sourceBuffer.updating) {
                     await new Promise(resolve =>
@@ -1413,6 +1484,15 @@ function getHtmlContent() {
       mounted() {
         this.loadConfig();
         this.loadForm();
+      },
+      beforeUnmount() {
+        // 清理URL对象，避免内存泄漏
+        if (this.audioSrc) {
+          URL.revokeObjectURL(this.audioSrc);
+        }
+        if (this.downloadUrl && this.downloadUrl !== this.audioSrc) {
+          URL.revokeObjectURL(this.downloadUrl);
+        }
       }
     }).mount('#app');
   </script>
