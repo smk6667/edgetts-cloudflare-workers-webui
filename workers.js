@@ -634,7 +634,7 @@ function getHtmlContent() {
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>TTS 服务终极测试页面 (v3.0 - Vue3重构版)</title>
   <style>
     :root {
@@ -1249,6 +1249,9 @@ function getHtmlContent() {
             const saved = localStorage.getItem('tts_config');
             if (saved) {
               this.config = { ...this.config, ...JSON.parse(saved) };
+              if (this.config.baseUrl.endsWith('/')) {
+                this.config.baseUrl = this.config.baseUrl.slice(0, -1); // 去除末尾的斜杠
+              }
             }
           } catch (e) {
             console.warn('Failed to load config from localStorage:', e);
