@@ -464,16 +464,31 @@ async function bytesToBase64(bytes) {
  * @returns {string} SSML 文档
  */
 function getSsml(text, voiceName, rate, pitch, style) {
-  // 转义 XML 特殊字符
-  const sanitizedText = text
+  // 先保护 break 标签
+  const breakTagRegex = /<break\s+time="[^"]*"\s*\/?>|<break\s*\/?>|<break\s+time='[^']*'\s*\/?>/gi;
+  const breakTags = [];
+  let processedText = text.replace(breakTagRegex, (match) => {
+    const placeholder = `__BREAK_TAG_${breakTags.length}__`;
+    breakTags.push(match);
+    return placeholder;
+  });
+
+  // 转义其他 XML 特殊字符
+  const sanitizedText = processedText
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+  // 恢复 break 标签
+  let finalText = sanitizedText;
+  breakTags.forEach((tag, index) => {
+    finalText = finalText.replace(`__BREAK_TAG_${index}__`, tag);
+  });
+
   return `<speak xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" version="1.0" xml:lang="en-US">
     <voice name="${voiceName}">
       <mstts:express-as style="${style}">
-        <prosody rate="${rate}%" pitch="${pitch}%">${sanitizedText}</prosody>
+        <prosody rate="${rate}%" pitch="${pitch}%">${finalText}</prosody>
       </mstts:express-as>
     </voice>
   </speak>`;
@@ -763,6 +778,56 @@ function getHtmlContent() {
       background-color: rgba(79, 70, 229, 0.1);
     }
 
+    .label-with-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .pause-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .pause-input {
+      width: 80px;
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .pause-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+    }
+
+    .btn-insert-pause {
+      background: linear-gradient(135deg, var(--mint-accent), #10b981);
+      color: white;
+      padding: 0.4rem 0.8rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-insert-pause:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-insert-pause:active {
+      transform: scale(0.95);
+    }
+
     .grid-layout {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -997,6 +1062,26 @@ function getHtmlContent() {
       textarea {
         min-height: 100px;
       }
+
+      .label-with-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+
+      .pause-controls {
+        align-self: flex-end;
+      }
+
+      .pause-input {
+        width: 70px;
+        font-size: 0.85rem;
+      }
+
+      .btn-insert-pause {
+        font-size: 0.8rem;
+        padding: 0.35rem 0.7rem;
+      }
     }
 
     @media (max-width: 480px) {
@@ -1060,8 +1145,17 @@ function getHtmlContent() {
       </details>
 
       <div class="form-group">
-        <label for="inputText">输入文本</label>
-        <textarea id="inputText" v-model="form.inputText" @input="saveForm"
+        <div class="label-with-controls">
+          <label for="inputText">输入文本</label>
+          <div class="pause-controls">
+            <input type="number" v-model.number="pauseTime" min="0.01" max="100" step="0.01" placeholder="停顿时长"
+              class="pause-input" />
+            <button type="button" @click="insertPause" class="btn-insert-pause" title="在光标位置插入停顿">
+              插入停顿
+            </button>
+          </div>
+        </div>
+        <textarea id="inputText" ref="textareaRef" v-model="form.inputText" @input="saveForm"
           placeholder="请在这里输入文本，目前尽可能不要超过1点5万字每次，不然会报错。音色映射可以自行修改workers的配置"></textarea>
         <div class="textarea-footer">
           <span v-cloak>{{ charCount }} 字符</span>
@@ -1207,6 +1301,7 @@ function getHtmlContent() {
           audioSrc: '',
           downloadUrl: '', // 添加下载链接
           showDownloadBtn: false, // 控制下载按钮显示
+          pauseTime: 1.0, // 停顿时间
           config: {
             baseUrl: 'https://你的域名',
             apiKey: '你的密钥'
@@ -1482,6 +1577,32 @@ function getHtmlContent() {
         },
         onAudioCanPlay() {
           console.log('Audio can play');
+        },
+        // 插入停顿标签
+        insertPause() {
+          const textarea = this.$refs.textareaRef;
+          if (!textarea) return;
+          if (!this.pauseTime || this.pauseTime <= 0 || this.pauseTime > 100) {
+            this.updateStatus('停顿时间必须在 0.01 到 100 秒之间', 'error');
+            return;
+          }
+
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const breakTag = '<break time="' + this.pauseTime + 's"/>';
+
+          const newText = this.form.inputText.slice(0, start) +
+            breakTag +
+            this.form.inputText.slice(end);
+
+          this.form.inputText = newText;
+
+          // 保持光标位置
+          this.$nextTick(() => {
+            const newPos = start + breakTag.length;
+            textarea.focus();
+            textarea.setSelectionRange(newPos, newPos);
+          });
         }
       },
       mounted() {
