@@ -671,6 +671,11 @@ function getHtmlContent() {
       box-sizing: border-box;
     }
 
+    html {
+      padding: 0;
+      margin: 0;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, sans-serif;
@@ -678,8 +683,8 @@ function getHtmlContent() {
       min-height: 100vh;
       color: var(--text-color);
       line-height: 1.6;
+      padding: 0;
       margin: 0;
-      padding: 1rem;
     }
 
     [v-cloak] {
@@ -691,7 +696,7 @@ function getHtmlContent() {
       justify-content: center;
       align-items: flex-start;
       min-height: 100vh;
-      padding: 1rem 0;
+      padding: 2rem 0 2rem;
     }
 
     .container {
@@ -792,7 +797,7 @@ function getHtmlContent() {
     }
 
     .pause-input {
-      width: 80px;
+      width: 6.5em;
       padding: 0.4rem 0.6rem;
       border: 1px solid var(--border-color);
       border-radius: 6px;
@@ -1031,6 +1036,10 @@ function getHtmlContent() {
         padding: 0.5rem;
       }
 
+      .app-container {
+        padding: 0 0 1rem;
+      }
+
       .container {
         padding: 1.5rem;
         border-radius: 12px;
@@ -1074,7 +1083,6 @@ function getHtmlContent() {
       }
 
       .pause-input {
-        width: 70px;
         font-size: 0.85rem;
       }
 
@@ -1583,7 +1591,7 @@ function getHtmlContent() {
           const textarea = this.$refs.textareaRef;
           if (!textarea) return;
           if (!this.pauseTime || this.pauseTime <= 0 || this.pauseTime > 100) {
-            this.updateStatus('停顿时间必须在 0.01 到 100 秒之间', 'error');
+            window.alert('停顿时间必须在 0.01 到 100 秒之间', 'error');
             return;
           }
 
