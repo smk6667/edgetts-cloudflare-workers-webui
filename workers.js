@@ -635,7 +635,7 @@ function getHtmlContent() {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>TTS 服务终极测试页面 (v3.0 - Vue3重构版)</title>
+  <title>🔊 TTS 服务终极测试页面 (v3.0 - Vue3重构版)</title>
   <style>
     :root {
       --primary-color: #4f46e5;
